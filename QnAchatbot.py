@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, render_template_string, session, jsonify
+from flask import Flask, request,render_template, render_template_string, session, jsonify
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from langchain.memory import ConversationBufferMemory
@@ -32,182 +32,6 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 HF_API_KEY = os.getenv("HF_API_KEY")
 INDEX_NAME = "handson-chatbot-index"
 
-# ---- HTML UI ----
-HTML_PAGE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Chatbot</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f3f4f7;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            display: flex;
-            justify-content: center;
-            align-items: stretch;  /* Stretch children to equal height */
-            width: 100vw;
-            height: 100vh;         /* or auto if you want natural height */
-            box-sizing: border-box;
-            padding: 40px 0;
-        }
-
-        .sidebar, .chatbox {
-            height: 100%;         /* Fill container height equally */
-        }
-
-        .container {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            width: 100vw;
-            height: 100vh;
-            box-sizing: border-box;
-            padding: 40px 0;
-        }
-        .sidebar {
-            background: #fff;
-            border-radius: 12px 0 0 12px;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.05);
-            padding: 32px 24px;
-            min-width: 320px;
-            max-width: 340px;
-            width: 28vw;
-            box-sizing: border-box;
-            border-right: 1px solid #e8e8e8;
-        }
-        .chatbox {
-            background: #fff;
-            border-radius: 0 12px 12px 0;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.06);
-            padding: 32px 24px;
-            min-width: 420px;
-            max-width: 700px;
-            width: 60vw;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-        }
-        .chatbox h2 {
-            margin-top: 0;
-            color: #2563eb;
-            margin-bottom: 16px;
-        }
-        .chat-messages {
-            flex: 1 1 auto;
-            max-height: 480px;
-            min-height: 320px;
-            overflow-y: auto;
-            margin-bottom: 12px;
-            padding-right: 8px;
-            border-radius: 6px;
-            border: 1px solid #eef1f5;
-            background: #f9fbfc;
-        }
-        .message {
-            margin-bottom: 18px;
-            padding: 8px 14px;
-            border-radius: 8px;
-            background: #f7fafc;
-        }
-        .message.user {
-            background: #e0e7ff;
-            text-align: right;
-        }
-        .message.ai {
-            background: #f1f5f9;
-            text-align: left;
-        }
-        .sidebar input[type="text"], .sidebar input[type="file"] {
-            width: 94%;
-            margin: 8px 0 18px 0;
-            padding: 7px 12px;
-            border-radius: 4px;
-            border: 1px solid #d1d5db;
-            font-size: 15px;
-        }
-        .sidebar input[type="checkbox"] {
-            margin-right: 8px;
-        }
-        .sidebar select {
-            width: 80%;
-            padding: 6px 8px;
-            margin-bottom: 16px;
-            font-size: 15px;
-            border-radius: 3px;
-            border: 1px solid #d1d5db;
-        }
-        .sidebar label {
-            font-weight: bold;
-            margin-top: 10px;
-            display: block;
-        }
-        .sidebar input[type="submit"] {
-            background: #2563eb;
-            color: #fff;
-            padding: 9px 18px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 18px;
-            font-size: 16px;
-            transition: 0.2s background;
-        }
-        .sidebar input[type="submit"]:hover {
-            background: #1d4ed8;
-        }
-
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="sidebar">
-            <form method="post" enctype="multipart/form-data">
-                <label for="model">Choose Model:</label>
-                <select name="model" id="model">
-                    <option value="azure">Azure OpenAI</option>
-                    <option value="huggingface">Hugging Face</option>
-                </select>
-                <label for="system_prompt">Custom System Prompt:</label>
-                <input name="system_prompt" id="system_prompt" placeholder="(leave blank for default)" type="text">
-                <label>
-                    <input type="checkbox" name="pinecone_enabled" value="yes">
-                    Enable Pinecone Retrieval
-                </label>
-                <label for="pdf_file">Upload PDF:</label>
-                <input type="file" name="pdf_file" id="pdf_file" accept=".pdf">
-                <label for="user_input">Your Message:</label>
-                <input name="user_input" id="user_input" placeholder="Type your message here..." required type="text">
-                <input type="submit" value="Send">
-            </form>
-        </div>
-        <div class="chatbox">
-            <h2>Conversation</h2>
-            <div class="chat-messages" id="chat-messages">
-                {% for msg in chat_history %}
-                    <div class="message {{ 'user' if msg['role'] == 'User' else 'ai' }}">
-                        <b>{{msg['role']}}:</b>
-                        {{msg['text']}}
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    <script>
-        // Scroll to the bottom of the chat-messages div after load
-        window.onload = function() {
-            var chatDiv = document.getElementById('chat-messages');
-            if(chatDiv){
-                chatDiv.scrollTop = chatDiv.scrollHeight;
-            }
-        };
-    </script>
-</body>
-</html>
-"""
 
 # -------- Helpers --------
 def get_llm(model_choice):
@@ -373,15 +197,11 @@ def chat():
         memory.save_context({"input": user_msg}, {"output": response_text})
         session["chat_history"].append({"role": "AI", "text": response_text})
 
-    return render_template_string(
-        HTML_PAGE,
+    return render_template(
+        "QnAbot.html",
         chat_history=session["chat_history"],
     )
 
 if __name__ == "__main__":
     app.run(debug=True)
 
-#Needs to be done
-#streaming
-#without refreshing the page,
-#the model selected, enable disable pinecone, custom system prompt needs to be as it is without refreshing

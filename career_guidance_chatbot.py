@@ -165,11 +165,6 @@ def send_newsletter(email, user_interests=["AI", "tech", "jobs"]):
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
 
-@app.route("/clear_history", methods=["POST"])
-def clear_history():
-    session["chat_history"] = []
-    memory.clear()  # If your ConversationBufferMemory has this method
-    return '', 204  # No Content response (for Ajax), or redirect as you wish
 
 @app.route("/", methods=["GET", "POST"])
 def chat():
@@ -223,7 +218,7 @@ def chat():
         session["chat_history"].append({"role": "AI", "text": llm_response})
 
     return render_template(
-        "index.html",
+        "career_guidance_chatbot.html",
         chat_history=session["chat_history"],
         newsletter_status=newsletter_status,
         market_news=market_news,
